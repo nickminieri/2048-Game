@@ -1,0 +1,354 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <time.h>
+
+#define BOARD_SIZE 4 // size of the game board
+#define KEY_UP 65 // up arrow
+#define KEY_DOWN 66 // down arrow
+#define KEY_LEFT 68 // left arrow
+#define KEY_RIGHT 67 // right arrow
+
+
+int board[BOARD_SIZE][BOARD_SIZE];
+int score = 0;
+int high_score = 0;
+bool won = false;
+
+
+// initializes the game board by setting all tiles to 0 and randomly placing two tiles (2 or 4) on the board
+void initialize_board() {
+    int i, j, k, n;
+    // i = row, j = column, k = number of tiles placed, n = value of tile (2 or 4)
+    srand(time(NULL));
+    for (i = 0; i < BOARD_SIZE; i++) {
+        for (j = 0; j < BOARD_SIZE; j++) {
+            board[i][j] = 0;
+        }
+    }
+    k = 0;
+    while (k < 2) {
+        i = rand() % BOARD_SIZE;
+        j = rand() % BOARD_SIZE;
+        if (board[i][j] == 0) { // if the tile is empty, place a 2 or 4 on it
+            n = (rand() % 10 == 0) ? 4 : 2;
+            board[i][j] = n;
+            k++;
+        }
+    }
+}
+
+// prints the current state of the board, along with the current score and high score
+void print_board() {
+    int i, j;
+    system("clear"); // clear screen
+    printf("*** Score = %d, High Score = %d ***\n", score, high_score);
+    printf("-------------------------\n");
+    for (i = 0; i < BOARD_SIZE; i++) {
+        printf("|");
+        for (j = 0; j < BOARD_SIZE; j++) {
+            if (board[i][j] == 0) {
+                printf("     |");
+            } else {
+                printf("%5d|", board[i][j]);
+            }
+        }
+        printf("\n-------------------------\n");
+    }
+}
+
+// checks whether the game is over by iterating through the board and checking if there are any empty tiles or if any adjacent tiles have the same value
+bool is_game_over() {
+    // check if the game is over (no empty tiles and no possible moves)
+    int i, j;
+    // i = row, j = column
+
+    // check for any empty tiles
+    for (i = 0; i < BOARD_SIZE; i++) {
+        for (j = 0; j < BOARD_SIZE; j++) {
+            if (board[i][j] == 0) {
+                return false;
+            }
+        }
+    }
+
+    // check for any adjacent tiles with the same value
+    for (i = 0; i < BOARD_SIZE - 1; i++) {
+        for (j = 0; j < BOARD_SIZE - 1; j++) {
+            if ((board[i][j] == board[i + 1][j]) || (board[i][j] == board[i][j + 1])) {
+                return false;
+            }
+        }
+    }
+
+    // no empty tiles and no possible moves, game is over
+    return true;
+}
+
+// function for moving tiles up
+void move_tiles_up() {
+    // move tiles up and combine them as necessary
+    int i, j, k;
+    // i = row, j = column, k = row of the tile to be moved
+    bool can_merge; // true if the tile can be merged with another tile
+
+    // iterates over each column of the board, from left to right
+    for (j = 0; j < BOARD_SIZE; j++) {
+        can_merge = false;
+        // starts at the second row (index 1) and iterates downwards for each tile
+        for (i = 1; i < BOARD_SIZE; i++) {
+            if (board[i][j] == 0) {
+                continue;
+            }
+            k = i;
+            // move the tile up as far as possible
+            while (k > 0 && board[k-1][j] == 0) {
+                k--;
+            }
+            // if the tile can be merged with the tile above it, merge them
+            if (k > 0 && board[k-1][j] == board[i][j] && !can_merge) {
+                board[k-1][j] *= 2;
+                score += board[k-1][j];
+                board[i][j] = 0;
+                can_merge = true;
+                if (board[k-1][j] == 2048) {
+                    won = true;
+                }
+                // reset can_merge to false after a merge occurs
+                can_merge = false;
+            // if the tile above is non-empty, don't merge and move the tile as high as possible
+            } else if (k != i) {
+                board[k][j] = board[i][j];
+                board[i][j] = 0;
+            }
+        }
+    }
+}
+
+void move_tiles_left() {
+    // move tiles left and combine them as necessary
+    int i, j;
+    // i = row, j = column
+
+    // Merge tiles with the same value
+    for (i = 0; i < BOARD_SIZE; i++) {
+        // Start from the second column (index 1)
+        for (j = 0; j < BOARD_SIZE - 1; j++) {
+            // If the tile is not empty and the tile to the right has the same value
+            if (board[i][j] != 0 && board[i][j] == board[i][j+1]) {
+                board[i][j] *= 2;
+                score += board[i][j];
+                board[i][j+1] = 0;
+                if (board[i][j] == 2048) {
+                    won = true;
+                }
+            }
+        }
+    }
+
+    // Move tiles to the left
+    for (i = 0; i < BOARD_SIZE; i++) {
+        for (j = 0; j < BOARD_SIZE - 1; j++) {
+            // If the tile is empty and the tile to the right is not empty
+            if (board[i][j] == 0 && board[i][j+1] != 0) {
+                board[i][j] = board[i][j+1];
+                board[i][j+1] = 0;
+            }
+        }
+    }
+}
+
+// function for moving tiles right
+void move_tiles_right() {
+    // move tiles right and combine them as necessary
+    int i, j, k;
+    // i = row, j = column, k = column of the tile to be moved
+
+    // Merge tiles with the same value
+    for (i = 0; i < BOARD_SIZE; i++) {
+        for (j = BOARD_SIZE - 2; j >= 0; j--) {
+            if (board[i][j] != 0) {
+                for (k = j + 1; k < BOARD_SIZE; k++) {
+                    if (board[i][k] == board[i][j]) {
+                        board[i][k] *= 2;
+                        score += board[i][k];
+                        board[i][j] = 0;
+                        break;
+                    } else if (board[i][k] != 0) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Shift tiles to the right
+    for (i = 0; i < BOARD_SIZE; i++) {
+        for (j = BOARD_SIZE - 2; j >= 0; j--) {
+            if (board[i][j] != 0) {
+                for (k = j + 1; k < BOARD_SIZE; k++) {
+                    if (board[i][k] == 0) {
+                        board[i][k] = board[i][j];
+                        board[i][j] = 0;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// function for moving tiles down
+void move_tiles_down() {
+    // move tiles down and combine them as necessary
+    int i, j, k;
+    // i = row, j = column, k = row of the tile to be moved
+
+    // Merge tiles with the same value
+    for (j = 0; j < BOARD_SIZE; j++) {
+        for (i = BOARD_SIZE - 2; i >= 0; i--) {
+            if (board[i][j] != 0) { // If the tile is not empty
+                for (k = i + 1; k < BOARD_SIZE; k++) {
+                    if (board[k][j] == board[i][j]) {
+                        board[k][j] *= 2;
+                        score += board[k][j];
+                        board[i][j] = 0;
+                        break;
+                    } else if (board[k][j] != 0) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Shift tiles downwards
+    for (j = 0; j < BOARD_SIZE; j++) {
+        for (i = BOARD_SIZE - 2; i >= 0; i--) {
+            if (board[i][j] != 0) {
+                for (k = i + 1; k < BOARD_SIZE; k++) {
+                    if (board[k][j] == 0) {
+                        board[k][j] = board[i][j];
+                        board[i][j] = 0;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// function to generate a new tile (2 or 4) in an empty tile
+void generate_new_tile() {
+    int i, j, n;
+    // i = row index, j = column index, n = value of the new tile
+
+    // Seed the random number generator
+    srand(time(NULL));
+    // Generate a random number between 0 and BOARD_SIZE - 1
+    while (true) {
+        i = rand() % BOARD_SIZE;
+        j = rand() % BOARD_SIZE;
+        // If the tile is empty, generate a new tile
+        if (board[i][j] == 0) {
+            n = (rand() < RAND_MAX * 0.9) ? 2: 4;
+            board[i][j] = n;
+            break;
+        }
+    }
+}
+
+// function to check if the game is over and update the scores
+void update_scores() {
+    // update the score and high score
+    int i, j;
+    // i = row index, j = column index
+
+    // Iterate through the board and add the value of each tile to the score
+    for (i = 0; i < BOARD_SIZE; i++) {
+        // Start from the second column (index 1)
+        for (j = 0; j < BOARD_SIZE; j++) {
+            // 2048 is the winning score
+            if (board[i][j] == 2048) {
+                won = true;
+            }
+            score += board[i][j];
+        }
+    }
+    // Update the high score
+    if (score > high_score) {
+        high_score = score;
+    }
+}
+
+void play_game() {
+    initialize_board();
+    print_board();
+
+    char input; // input from the user
+    while (!is_game_over()) {
+        input = getchar();
+        if (input == 27) { // Escape character
+            getchar(); // '['
+            input = getchar();
+            if (input == 'A') { // Up arrow
+                move_tiles_up();
+            } else if (input == 'B') { // Down arrow
+                move_tiles_down();
+            } else if (input == 'C') { // Right arrow
+                move_tiles_right();
+            } else if (input == 'D') { // Left arrow
+                move_tiles_left();
+            } else {
+                // invalid input
+                printf("Invalid input. Please try again.");
+            }
+            update_scores();
+            generate_new_tile();
+            print_board();
+            // check if the game has been won
+            if (won) {
+                printf("You won! Final Score: %d, High Score: %d\n", score, high_score);
+                break;
+            }
+        } else if (input == 'q' || input == 'Q') {
+            system("clear"); // clear the screen
+            printf("\nThanks for Playing!\nFinal Score: %d, High Score: %d\n", score, high_score);
+            break;
+        }
+    }
+    // Check if the game is over
+    if (is_game_over()) {
+        printf("Game over! Final Score: %d, High Score: %d\n", score, high_score);
+    }
+}
+
+void play_again() {
+    char playagain_input;
+
+    printf("Do you want to play again? (y/n): ");
+    scanf(" %c", &playagain_input);
+    if (playagain_input == 'y' || playagain_input == 'Y') {
+        initialize_board();
+        // reset score to 0
+        score = 0;
+        print_board();
+        play_game();
+    } else if (playagain_input == 'n' || playagain_input == 'N') {
+        printf("Goodbye!\n");
+        exit(0);
+    } else {
+        printf("Invalid input, please enter 'y' or 'n'\n");
+        play_again();
+    }
+
+}
+
+int main() {
+    play_game(); // play the game  
+    play_again(); // play again
+
+    return 0;
+}
